@@ -150,7 +150,7 @@ module Kafka
 
         begin
           begin
-            Protocol.handle_error(partition_info.error_code)
+            Protocol.handle_error(partition_info.error_code, "happened with topic: #{topic} partition: #{partition} records_size: #{records.size}")
           rescue ProtocolError => e
             @instrumenter.instrument("topic_error.producer", {
               topic: topic,
