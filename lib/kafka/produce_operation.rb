@@ -158,6 +158,13 @@ module Kafka
             })
 
             raise e
+          rescue ConnectionError => e
+            @instrumenter.instrument("connection_error.producer", {
+              topic: topic,
+              exception: [e.class.to_s, e.message]
+            })
+
+            raise e
           end
 
           if @transaction_manager.idempotent? || @transaction_manager.transactional?
