@@ -133,6 +133,11 @@ module Kafka
           handle_response(broker, response, records_for_topics) if response
         rescue ConnectionError => e
           @logger.error "Could not connect to broker #{broker}: #{e}, topics: #{records_for_topics.keys}, err_msg: #{e.message}"
+          records_for_topics.each do |topic, parts|
+            parts.each do |partition, rb|
+              @logger.error "[conn-err] #{topic}, #{partition}, #{rb.records.inspect}"
+            end
+          end
 
           # Mark the cluster as stale in order to force a cluster metadata refresh.
           @cluster.mark_as_stale!
