@@ -164,6 +164,8 @@ module Kafka
               exception: [e.class.to_s, e.message]
             })
 
+            @logger.error("Found #{e.class.to_s} with topic: #{topic}, message: #{e.message}")
+
             raise e
           end
 
