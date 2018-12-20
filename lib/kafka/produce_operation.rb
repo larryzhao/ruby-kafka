@@ -135,7 +135,7 @@ module Kafka
           @logger.error "Could not connect to broker #{broker}: #{e}, topics: #{records_for_topics.keys}, err_msg: #{e.message}"
           records_for_topics.each do |topic, parts|
             parts.each do |partition, rb|
-              @logger.error "[conn-err] #{topic}, #{partition}, #{rb.records.size} #{rb.records.map(&:bytesize)}"
+              @logger.error "[conn-err] #{topic}, #{partition}, #{rb.records.size} #{rb.records.map(&:bytesize)}, #{e.backtrace}"
             end
           end
 
