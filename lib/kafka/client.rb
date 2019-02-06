@@ -4,6 +4,9 @@ require "kafka/ssl_context"
 require "kafka/cluster"
 require "kafka/transaction_manager"
 require "kafka/broker_info"
+require "oj"
+require "multi_json"
+require "kafka/preserver"
 require "kafka/producer"
 require "kafka/consumer"
 require "kafka/heartbeat"
@@ -248,7 +251,8 @@ module Kafka
       idempotent: false,
       transactional: false,
       transactional_id: nil,
-      transactional_timeout: 60
+      transactional_timeout: 60,
+      preserver_log: nil
     )
       cluster = initialize_cluster
       compressor = Compressor.new(
@@ -278,6 +282,7 @@ module Kafka
         retry_backoff: retry_backoff,
         max_buffer_size: max_buffer_size,
         max_buffer_bytesize: max_buffer_bytesize,
+        preserver_log: preserver_log
       )
     end
 

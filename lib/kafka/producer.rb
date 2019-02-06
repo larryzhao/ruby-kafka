@@ -127,7 +127,7 @@ module Kafka
   class Producer
     class AbortTransaction < StandardError; end
 
-    def initialize(cluster:, transaction_manager:, logger:, instrumenter:, compressor:, ack_timeout:, required_acks:, max_retries:, retry_backoff:, max_buffer_size:, max_buffer_bytesize:)
+    def initialize(cluster:, transaction_manager:, logger:, instrumenter:, compressor:, ack_timeout:, required_acks:, max_retries:, retry_backoff:, max_buffer_size:, max_buffer_bytesize:, preserver_log: nil)
       @cluster = cluster
       @transaction_manager = transaction_manager
       @logger = logger
@@ -139,6 +139,7 @@ module Kafka
       @max_buffer_size = max_buffer_size
       @max_buffer_bytesize = max_buffer_bytesize
       @compressor = compressor
+      @preserver = Kafka::Preserver.new(preserver_log, logger: logger) if !preserver_log.nil?
 
       # The set of topics that are produced to.
       @target_topics = Set.new
@@ -375,6 +376,7 @@ module Kafka
         begin
           @cluster.refresh_metadata_if_necessary!
         rescue ConnectionError => e
+          @logger.error "Something happened, ConnectionError raised"
           raise DeliveryFailed.new(e, buffer_messages)
         end
 
@@ -392,10 +394,18 @@ module Kafka
           break
         elsif attempt <= @max_retries
           @logger.warn "Failed to send all messages; attempting retry #{attempt} of #{@max_retries} after #{@retry_backoff}s"
-
           sleep @retry_backoff
         else
-          @logger.error "Failed to send all messages; keeping remaining messages in buffer"
+          if !@preserver.nil?
+            # Dump buffer into preserver and clears buffer
+            @logger.warn "[preserver] dumping #{@buffer.size} messages"
+            @preserver.dump(@buffer)
+            @logger.warn "[preserver] dumpped, clear buffer"
+            @buffer.clear
+          else
+            @logger.error "Failed to send all messages; keeping remaining messages in buffer"
+          end
+
           break
         end
       end
@@ -455,6 +465,12 @@ module Kafka
       if failed_messages.any?
         failed_messages.group_by(&:topic).each do |topic, messages|
           @logger.error "Failed to assign partitions to #{messages.count} messages in #{topic}"
+        end
+
+        if !@preserver.nil?
+          @logger.warn 'Dumping failed pending messages to preserver'
+          @preserver.dump_pending_queue(@pending_message_queue)
+          @pending_message_queue.clear
         end
 
         @cluster.mark_as_stale!
