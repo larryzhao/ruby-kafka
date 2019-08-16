@@ -381,7 +381,18 @@ module Kafka
         end
 
         assign_partitions!
-        operation.execute
+        begin
+          operation.execute
+        rescue Kafka::MessageSizeTooLarge => e
+          if !@preserver.nil?
+            @logger.error "[preserver] [size-too-large] dumping #{@buffer.size} messages"
+            @preserver.dump(@buffer)
+            @logger.error "[preserver] [size-too-large] dumpped"
+          end
+
+          @logger.warn "[preserver] [size-too-large] clear buffer"
+          @buffer.clear
+        end
 
         if @required_acks.zero?
           # No response is returned by the brokers, so we can't know which messages
